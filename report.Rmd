@@ -1,0 +1,2029 @@
+---
+output: pdf_document
+---
+# Dataset
+The dataset that is used is "Heart Disease" dataset.You can find dataset from here:"https://www.kaggle.com/ronitf/heart-disease-uci".This database contains 
+76 attributes, but all published experiments refer to using a subset of 14 of 
+them. The "goal" field refers to the presence of heart disease in the patient. 
+It is integer valued from 0 (no presence) to 4.The dataset includes 303 objects 
+of 14 variables:
+age : age of patients in the dataset
+sex : gender of paitnets which defined by 1 for male and 0 for female
+cp : chest pain type of  each patient reported which takes integer values from 
+0 to 4
+trestbps: The resting blood pressure of patients which is a real number 
+chol: serum cholesterol in mg/dl
+fbs: the boolean value which shows if patients fasting blood sugar is greater 
+than 120 mg/dl or not
+restecg: resting electrocardiographic results which categorized in 3 group from 
+0 to 3
+thalach: maximum heart rate achieved
+exang: exercise induced angina
+oldpeak: ST depression induced by exercise relative to rest
+oldpeak: the slope of the peak exercise ST segment
+number of major vessels (0-3) colored by fluoroscopy
+thal: 3 = normal; 6 = fixed defect; 7 = reversible defect
+```{r}
+heart <- read.csv("heart.csv")
+str(heart)
+```
+
+From the structure we can see that the dataset is not structured in a perfect
+way,as you can see "sex","cp","restecg","exang", "slope","ca","thal" 
+and "target" does not have clear data.
+```{r}
+heart$sex <- factor(heart$sex)
+heart$cp <- factor(heart$cp)
+heart$fbs <- factor(heart$fbs)
+heart$restecg <- factor(heart$restecg)
+heart$exang <- factor(heart$exang)
+heart$slope <- factor(heart$slope)
+heart$ca <- factor(heart$ca)
+heart$thal <- factor(heart$thal)
+heart$target <- factor(heart$target)
+str(heart)
+
+```
+The result shows us a better view about our data.
+```{r}
+head(heart)
+```
+```{r}
+any(is.na(heart))
+```
+There is no NA in data so we do not need to omit our data.
+The first type of analysis which is conducted is the univariate one. After this,
+a preliminary analysis is carried out, in order to understand if it would be 
+useful to run a Principal Component Analysis and a Cluster one on this dataset.
+So, further on, it is runned the Principal Component Analysis and the Cluster 
+Analysis, which results are verified through the Cluster Validation. Finally, 
+Model Based Clustering is carried out.
+
+# Univariate Analysis
+## Age
+Age is a continuous variable in range(0,),
+```{r}
+length(heart$age)
+min(heart$age)
+max(heart$age)
+```
+The length of sample is 303, and the values are in range 29-77.
+``` {r} 
+summary(heart$age)
+```
+``` {r} 
+sd(heart$age)
+```
+``` {r}
+var(heart$age)
+```
+From the results we can see the Mean and Median are not equal so the 
+distribution is asymmetrical or skewed. As we can see mean<median so the 
+distribution should be negative.The skewness is minus so the prediction was 
+right.
+``` {r}
+library(e1071)  
+skewness(heart$age)
+```
+```{r}
+boxplot(heart$age, main = "Boxplot of Age")
+points(mean(heart$age))
+```
+The box plot is a graphical representation used to describe the distribution of 
+the variable which contains the first and third quartiles as the lower and 
+upper ends of the plotted rectangle.The median divides the box into two parts. 
+If we plot a box plot for our data the following plot appears. we can say that 
+this variable has no outliers as there are no dots out of the line.
+Now, we can plot the histogram and look for the model that fits better the 
+distribution:
+```{r}
+hist(heart$age, freq=FALSE, xlab= "Age", main = "Histogram of Age")
+lines(density(heart$age), col="red")
+```
+```{r}
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+```
+
+As the dataset is related to heart disease from above plot we can realise that 
+the distribution of data above mean is greater than below mean so we can assume 
+that the range of heart disease in patients with age more than 54 is higher.
+If we look at the histogram of data we can see that the diagram has two peaks.
+Safe to say that the distribution is Bimodal.Also we can see that the left tail
+is larger which it was obvious for use as we saw below the skewness is negative.
+
+### Data fitting for Age
+According to the domain of the variable, the distributions supported on the set 
+of positive infinite real numbers are fitted on the data. Log-likelihood value, 
+BIC and AIC are estimated in order to evaluate the fit of the distribution.
+```{r}
+round(2*nrow(heart)**(1/3))
+```
+
+```{r}
+library(gamlss)
+(age.LOGNO<- histDist(heart$age, xlab = "age", family=LOGNO, nbins=13, 
+         main = "Age LogNormal Distribution") )
+```
+
+
+```{r}
+(age.GA<-histDist(heart$age, xlab = "age", family=GA, nbins=13, 
+         main = "Age Gamma Distribution"))
+```
+```{r}
+age.WEI<-histDist(heart$age, xlab = "age", family=WEI, nbins=13, 
+                  main = "Age Weibull Distribution")
+```
+```{r}
+age.EXP<- histDist(heart$age, xlab = "age", family=EXP, nbins=13, 
+                   main = "Age Exponential Distribution")
+```
+```{r}
+age.IG<-histDist(heart$age, xlab = "age", family=IG, nbins=13, 
+                 main = "Age Inverse Gussian Distribution")
+```
+```{r}
+age.matrix<-matrix(c(age.LOGNO$df.fit, logLik(age.LOGNO), AIC(age.LOGNO), 
+                     age.LOGNO$sbc, age.GA$df.fit, logLik(age.GA), AIC(age.GA), 
+                     age.GA$sbc,    age.WEI$df.fit, logLik(age.WEI), 
+                     AIC(age.WEI), age.WEI$sbc,
+age.EXP$df.fit, logLik(age.EXP), AIC(age.EXP), age.EXP$sbc,
+age.IG$df.fit, logLik(age.IG), AIC(age.IG), age.IG$sbc), ncol=4, byrow=TRUE)
+colnames(age.matrix)<-c("df","LogLik", "AIC", "BIC")
+rownames(age.matrix)<-c("LOGNO", "GA", "WEI", "EXP", "IG")
+age.matrix<-as.table(age.matrix)
+age.matrix
+```
+As we can see the model that has maximum value of log likelihood and less value 
+in AIC and BIC is "Weibull distribution" so based on maximum likelihood method 
+its safe to say that our data fits better in Weibull distribution.
+
+### Likelihood ratio test
+The Likelihood-ratio test goodness of fit performed between the Exponential 
+model (under the null hypothesis) and the Weibull model (under the alternative 
+hypothesis).
+```{r}
+library(lmtest)
+lrtest(age.EXP, age.WEI)
+```
+The null hypothesis would be rejected at nearly every significance level. Thus, 
+we know that we should definitely use the Weibull model as it increases the 
+accuracy of our model by a substantial amount. 
+
+### Mixture of distributions
+It is possible to compute a mixture of two gamma distributions In order to find 
+the best mixture,the algorithm is repeated five times.
+```{r}
+library(gamlss.mx)
+mxfit <- gamlssMXfits(n = 5, heart$age~1, family = GA, K = 2, data = heart)
+```
+We can see that with the mixture of two Gamma distributions the AIC and BIC 
+values have improved, as they are lower than those obtained with the single 
+Gamma distribution: AIC is now equal to 2189.24, while the previous value was 
+2210.398, BIC is now 2207.81, which is lower than 2217.825 which was the 
+previous value.
+
+```{r}
+logLik(mxfit)
+```
+```{r}
+mxfit$prob
+```
+```{r}
+fitted(mxfit, "mu")[1]
+```
+```{r}
+fitted(mxfit, "sigma")[2]
+```
+```{r}
+hist(heart$age, breaks = 50,freq = FALSE)
+mu.hat1 <- exp(mxfit[["models"]][[1]][["mu.coefficients"]])
+sigma.hat1 <- exp(mxfit[["models"]][[1]][["sigma.coefficients"]])
+mu.hat2 <- exp(mxfit[["models"]][[2]][["mu.coefficients"]])
+sigma.hat2 <- exp(mxfit[["models"]][[2]][["sigma.coefficients"]])
+hist(heart$age, breaks = 50, freq = FALSE, xlab = "Age" , 
+     main="Age-Mixture of two Lognormal distributions", plot = FALSE)
+
+lines(seq(min(heart$age),max(heart$age),length=length(heart$age)),
+      mxfit[["prob"]][1]*dGA(seq(min(heart$age),max(heart$age),                                 length=length(heart$age)),mu=mu.hat1,sigma=sigma.hat1),lty=2,lwd=3,col=2)
+
+lines(seq(min(heart$age),max(heart$age),length=length(heart$age)),
+      mxfit[["prob"]][2]*dGA(seq(min(heart$age),max(heart$age),
+length=length(heart$age)),mu=mu.hat2,sigma = sigma.hat2),lty=2,lwd=3,col=3)
+
+lines(seq(min(heart$age),max(heart$age),length=length(heart$age)),
+      mxfit[["prob"]][1]*dGA(seq(min(heart$age),max(heart$age),                                 length=length(heart$age)),mu=mu.hat1,sigma=sigma.hat1)+
+        mxfit[["prob"]][2]*dRG(seq(min(heart$age),max(heart$age),
+length=length(heart$trestbps)),mu= mu.hat2,sigma = sigma.hat2), 
+lty = 1, lwd = 3, col = 1)
+```
+Since we have selected K=2, we can see in the plot 2 peaks, each corresponding 
+to a distribution.The dotted red line is relative to the first distribution, 
+the dotted green one to the second distribution, while the black line is 
+relative to the mixture, i.e. the overall model for all data.
+
+## Sex
+Sex is a categorical variable that can take two values 1 for male and 0 for 
+females.
+```{r}
+library(ggplot2)
+summary(heart$sex)
+ggplot(heart, aes(x = sex, fill=sex)) + geom_bar()
+```
+
+As the result shows our dataset contains data belonging to 96 females and 207 
+male.So from both plot and summary we can see that our data is not balanced and 
+the study includes more male than females.
+
+## Chest Pain Type (CP)
+Chest pain type (cp)  is a categorical variable that takes four values from 0 
+to 4.
+```{r}
+summary(heart$cp)
+ggplot(heart, aes(x = cp, fill=cp)) + geom_bar()
+```
+As the result shows, the most common pain type is 0 and the least is 3.So from 
+both plot and summary we can see that our data is not balanced.
+
+## The Resting Blood Pressure(trestbps)
+The Resting Blood Pressure(trestbps) is a numerical continuous variable in rage
+(0,infinite).
+```{r}
+length(heart$trestbps)
+```
+```{r}
+min(heart$trestbps)
+```
+```{r}
+max(heart$trestbps)
+```
+The length of sample is 303, and the values are in range 94-200.
+```{r}
+summary(heart$trestbps)
+```
+```{r}
+sd(heart$trestbps)
+```
+```{r}
+var(heart$trestbps)
+```
+From the results we can see the Mean and Median are not equal so the 
+distribution is asymmetrical or skewed. As we can see mean>median so the 
+distribution should be positive and it appear that it is a unimodal 
+distribution.
+```{r}
+skewness(heart$trestbps)
+```
+The skewness is positive so distribution is skewed towards the right, and many 
+values are higher than the mean.
+```{r}
+hist(heart$trestbps, freq=FALSE, xlab= "Trestbps", main = "Histogram of Trestbps")
+lines(density(heart$trestbps), col="red")
+```
+
+```{r}
+boxplot(heart$trestbps, main = "Boxplot of Trestbps")
+points(mean(heart$trestbps))
+```
+The box plot shows some noises but if we see the distribution of data below and 
+above the mean line we can see that it's almost equal which it was predictable
+since mean and median have close values so we can understand the risk of heart 
+disease is almost equal between people with different blood pressure. Even if 
+we set a side noise from histogram the shape of histogram is close to normal 
+distribution.
+
+### Data fitting for Trestbps
+According to the domain of the variable, the distributions supported on the set
+of positive infinite real numbers are fitted on the data. Log-likelihood value,
+BIC and AIC are estimated in order to evaluate the fit of the distribution.
+```{r}
+trestbps.logno<- histDist(heart$trestbps, xlab = "Trestbps", family=LOGNO, 
+                          nbins=13, main = "Trestbps LogNormal Distribution")
+```
+```{r}
+trestbps.ga<-histDist(heart$trestbps, xlab = "Trestbps", family=GA, nbins=13, 
+         main = "Trestbps Gamma Distribution")
+```
+```{r}
+trestbps.wei<-histDist(heart$trestbps, xlab = "Trestbps", family=WEI, nbins=13, 
+          main = "Trestbps Weibull Distribution")
+```
+```{r}
+trestbps.exp<-histDist(heart$trestbps, xlab = "Trestbps", family=EXP, nbins=13, 
+          main = "Trestbps Exponential Distribution")
+```
+```{r}
+trestbps.ig<- histDist(heart$trestbps, xlab = "Trestbps" , family=IG, nbins=13, 
+          main = "Trestbps Inverse Gamma Distribution")
+```
+```{r}
+trestbps.matrix<-matrix(c(trestbps.logno$df.fit, logLik(trestbps.logno), 
+                          AIC(trestbps.logno), trestbps.logno$sbc, 
+                          trestbps.ga$df.fit, logLik(trestbps.ga), 
+                          AIC(trestbps.ga), trestbps.ga$sbc, 
+                          trestbps.wei$df.fit, logLik(trestbps.wei), 
+                          AIC(trestbps.wei), trestbps.wei$sbc, 
+                          trestbps.exp$df.fit, logLik(trestbps.exp), 
+                          AIC(trestbps.exp), trestbps.exp$sbc, 
+                          trestbps.ig$df.fit, logLik(trestbps.ig), 
+                          AIC(trestbps.ig), trestbps.ig$sbc), ncol=4, 
+                        byrow=TRUE)
+colnames(trestbps.matrix)<-c("df","LogLik", "AIC", "BIC")
+rownames(trestbps.matrix)<-c("EXP", "GA", "LOGNO", "IG", "WEI")
+trestbps.matrix<-as.table(trestbps.matrix)
+trestbps.matrix
+```
+As we can see the model that has maximum value of log likelihood and less value 
+in AIC and BIC is "Exponential distribution" so based on maximum likelihood 
+method its safe to say that our data fits better in Exponential distribution.
+
+### Likelihood ratio test
+The Likelihood-ratio test goodness of fit performed between the Inverse Gamma 
+model (under the null hypothesis) and the Exponential model (under the 
+alternative hypothesis).
+```{r}
+lrtest(trestbps.ig, trestbps.exp)
+```
+The null hypothesis would be rejected at nearly every significance level. Thus, 
+we know that we should definitely use the Exponential model as it increases the 
+accuracy of our model by a substantial amount.
+
+### Mixture of distributions
+It is possible to compute a mixture of two lognormal distributions In order to 
+find the best mixture,the algorithm is repeated five times.
+```{r}
+mxfit <- gamlssMXfits(n = 5, heart$trestbps~1, family = LOGNO, K = 2, 
+                      data = heart)
+```
+We can see that with the mixture of two Gamma distributions the AIC and BIC 
+values have improved, as they are lower than those obtained with the single 
+Gamma distribution: AIC is now equal to 2581.22, while the previous value was 
+2656.523, BIC is now 2599.79, which is lower than 2663.950 which was the 
+previous value.
+```{r}
+hist(heart$trestbps, breaks = 50,freq = FALSE)
+mu.hat1 <- exp(mxfit[["models"]][[1]][["mu.coefficients"]])
+sigma.hat1 <- exp(mxfit[["models"]][[1]][["sigma.coefficients"]])
+mu.hat2 <- exp(mxfit[["models"]][[2]][["mu.coefficients"]])
+sigma.hat2 <- exp(mxfit[["models"]][[2]][["sigma.coefficients"]])
+hist(heart$trestbps, breaks = 50, freq = FALSE, xlab = "Trestbps" ,
+     main="Trestbps-Mixture of two Lognormal distributions")
+lines(seq(min(heart$trestbps),max(heart$trestbps),
+          length=length(heart$trestbps)),
+      mxfit[["prob"]][1]*dGA(seq(min(heart$trestbps),max(heart$trestbps),
+         length=length(heart$trestbps)),mu=mu.hat1,sigma=sigma.hat1),
+      lty=2,lwd=3,col=2)
+lines(seq(min(heart$trestbps),max(heart$trestbps),
+          length=length(heart$trestbps)),
+      mxfit[["prob"]][2]*dGA(seq(min(heart$trestbps),max(heart$trestbps),
+length=length(heart$trestbps)),mu=mu.hat2,sigma = sigma.hat2),lty=2,lwd=3,col=3)
+lines(seq(min(heart$trestbps),max(heart$trestbps),
+          length=length(heart$trestbps)),
+      mxfit[["prob"]][1]*dGA(seq(min(heart$trestbps),max(heart$trestbps),                                 length=length(heart$trestbps)),                             mu=mu.hat1,sigma=sigma.hat1)+mxfit[["prob"]][2]*dRG(seq(min(heart$trestbps),                                                                                        max(heart$trestbps),length=length(heart$trestbps)),
+mu= mu.hat2,sigma = sigma.hat2), lty = 1, lwd = 3, col = 1)
+```
+Since we have selected K=2, we can see in the plot 2 peaks, each corresponding 
+to a distribution.The dotted red line is relative to the first distribution, 
+the dotted green one to the second distribution, while the black line is 
+relative to the mixture, i.e. the overall model for all data.
+
+## Serum cholesterol in mg/dl(chol)
+Serum cholesterol in mg/dl(chol) is a numerical continuous variable in rage 
+(0,infinite).
+```{r}
+length(heart$chol)
+```
+```{r}
+min(heart$chol)
+```
+```{r}
+max(heart$chol)
+```
+The length of sample is 303, and the values are in range 126-564.
+```{r}
+summary(heart$chol)
+```
+```{r}
+sd(heart$chol)
+```
+```{r}
+var(heart$chol)
+```
+From the results we can see the Mean and Median are not equal so the 
+distribution is asymmetrical or skewed. As we can see mean>median so the 
+distribution should be positive and from histogram it appears to be a unimodal
+distribution.
+```{r}
+skewness(heart$chol)
+```
+The skewness is positive so distribution is skewed towards the right, and many 
+alues are higher than the mean.
+```{r}
+hist(heart$chol, freq=FALSE, xlab= "chol", main = "Histogram of chol")
+lines(density(heart$chol), col="red")
+boxplot(heart$chol, main = "Boxplot of chol")
+points(mean(heart$chol))
+```
+
+The box plot shows some noises but if we see the distribution of data below and 
+above the mean line we can see that it's almost equal which is predictable 
+since mean and median have close values so we can understand the risk of heart
+disease is almost equal between people with different cholesterol levels. Even 
+if we set a side noise from histogram the shape of histogram is close to normal
+distribution.
+
+### Data fitting for Chol
+According to the domain of the variable, the distributions supported on the 
+set of positive infinite real numbers are fitted on the data. Log-likelihood 
+value, BIC and AIC are estimated in order to evaluate the fit of the 
+distribution.
+```{r}
+chol.logno<-histDist(heart$chol, xlab = "chol" , family=LOGNO, nbins=13, 
+                     main = "chol LogNormal Distribution")
+```
+```{r}
+chol.ga<-histDist(heart$chol, xlab = "chol" , family=GA, nbins=13, 
+                  main = "chol Gamma Distribution")
+```
+```{r}
+chol.wei<-histDist(heart$chol, xlab = "chol" ,family=WEI, nbins=13, 
+                   main = "chol Weibull Distribution")
+```
+```{r}
+chol.exp <- histDist(heart$chol, xlab = "chol" , family=EXP, nbins=13,        
+                     main = "chol Exponential Distribution")
+```
+```{r}
+chol.ig <- histDist(heart$chol, xlab = "chol" , family=IG, nbins=13, 
+                    main = "chol Inverse Gamma Distribution")
+```
+```{r}
+chol.matrix<-matrix(c(chol.logno$df.fit, logLik(chol.logno), AIC(chol.logno), 
+                      chol.logno$sbc, chol.ga$df.fit, logLik(chol.ga), 
+                      AIC(chol.ga), chol.ga$sbc, chol.wei$df.fit, 
+                      logLik(chol.wei), AIC(chol.wei), chol.wei$sbc,   
+                      chol.exp$df.fit, logLik(chol.exp), AIC(chol.exp), 
+                      chol.exp$sbc, chol.ig$df.fit, logLik(chol.ig), 
+                      AIC(chol.ig), chol.ig$sbc), ncol=4, byrow=TRUE
+)
+colnames(chol.matrix)<-c("df","LogLik", "AIC", "BIC")
+rownames(chol.matrix)<-c("EXP", "GA", "LOGNO", "IG", "WEI")
+chol.matrix<-as.table(chol.matrix)
+chol.matrix
+```
+As we can see the model that has maximum value of log likelihood and less value 
+in AIC and BIC is "Exponential distribution" so based on maximum likelihood 
+method its safe to say that our data fits better in Exponential distribution.
+
+### Likelihood ratio test
+The Likelihood-ratio test goodness of fit performed between the Inverse Gamma 
+model (under the null hypothesis) and the Exponential model (under the 
+alternative hypothesis).
+```{r}
+lrtest(chol.ig, chol.exp)
+```
+The null hypothesis would be rejected at nearly every significance level. Thus, 
+we know that we should definitely use the Exponential model as it increases the 
+accuracy of our model by a substantial amount.
+
+### Mixture of distributions
+It is possible to compute a mixture of two lognormal distributions In order to 
+find the best mixture,the algorithm is repeated five times.
+```{r}
+mxfit <- gamlssMXfits(n = 5, heart$chol~1, family = LOGNO, K = 2, data = heart)
+```
+We can see that with the mixture of two Gamma distributions the AIC and BIC 
+values have improved, as they are lower than those obtained with the single 
+Gamma distribution: AIC is now equal to 3223.84, while the previous value was 
+3306.970 , BIC is now 3242.41, which is lower than 3314.398 which was the 
+previous value.
+```{r}
+hist(heart$chol, breaks = 50,freq = FALSE)
+mu.hat1 <- exp(mxfit[["models"]][[1]][["mu.coefficients"]])
+sigma.hat1 <- exp(mxfit[["models"]][[1]][["sigma.coefficients"]])
+mu.hat2 <- exp(mxfit[["models"]][[2]][["mu.coefficients"]])
+sigma.hat2 <- exp(mxfit[["models"]][[2]][["sigma.coefficients"]])
+hist(heart$chol, breaks = 50, freq = FALSE, xlab = "Chol",
+     main="Chol-Mixture of two Lognormal distributions", plot = FALSE)
+lines(seq(min(heart$chol),max(heart$chol),length=length(heart$chol)),
+      mxfit[["prob"]][1]*dGA(seq(min(heart$chol),max(heart$chol),                                 length=length(heart$chol)),mu=mu.hat1,sigma=sigma.hat1),
+      lty=2,lwd=3,col=2)
+lines(seq(min(heart$chol),max(heart$chol),length=length(heart$chol)), mxfit[["prob"]][2]*dGA(seq(min(heart$chol),max(heart$chol),                                                                length=length(heart$chol)),mu=mu.hat2,sigma = sigma.hat2),lty=2,lwd=3,col=3)
+lines(seq(min(heart$chol),max(heart$chol),length=length(heart$chol)),
+      mxfit[["prob"]][1]*dGA(seq(min(heart$chol),max(heart$chol),
+                                 length=length(heart$chol)),mu=mu.hat1,sigma=sigma.hat1)+
+        mxfit[["prob"]][2]*dRG(seq(min(heart$chol),
+                                   max(heart$chol),length=length(heart$chol)),
+                               mu= mu.hat2,sigma = sigma.hat2), lty = 1, 
+      lwd = 3, col = 1)
+```
+Since we have selected K=2, we can see in the plot 2 peaks, each corresponding 
+to a distribution.The dotted red line is relative to the first distribution,the dotted green one to the second distribution, while the black line is relative 
+to the mixture, i.e. the overall model for all data.
+
+## Fasting blood sugar(fbs)
+Fasting blood sugar is a categorical variable that aims to show if a patient has fbs more than 120 mg/dl or not.
+```{r}
+summary(heart$fbs)
+```
+```{r}
+ggplot(heart, aes(x = fbs, fill=fbs)) + geom_bar()
+```
+As the result shows 258 people have fbs less than 120 mg/dl and 45 more than 120 mg/dl.So from both plot and summary we can see that our data is not balanced.
+
+## Resting electrocardiographic results (restecg)
+Resting electrocardiographic results  is a categorical variable that categorizes results in 3 groups 0, 1,2.
+```{r}
+summary(heart$restecg)
+```
+```{r}
+ggplot(heart, aes(x = restecg, fill=restecg)) + geom_bar()
+```
+As the result shows group 0 contains 147 records, group 1 contains 152 records 
+and group 2 contains 4 values. As you can see the data is not balanced between groups and group 1 contains maximum records while group 2 includes minimum records.
+
+## Maximum heart rate achieved(thalach)
+Maximum heart rate achieved(thalach) is a numerical continuous variable in rage (0,).
+```{r}
+length(heart$thalach)
+```
+```{r}
+min(heart$thalach)
+```
+```{r}
+max(heart$thalach)
+```
+The length of sample is 303, and the values are in range 71-202.
+```{r}
+summary(heart$thalach)
+```
+```{r}
+sd(heart$thalach)
+```
+```{r}
+var(heart$thalach)
+```
+From the results we can see the Mean and Median are not equal so the 
+distribution is asymmetrical or skewed. As we can see mean<median so the distribution should be negative and from histogram it appears to be a unimodal distribution.
+```{r}
+skewness(heart$thalach)
+```
+The skewness is negative so distribution is skewed towards the left, and many values are lower than the mean.
+```{r}
+hist(heart$thalach, freq=FALSE, xlab= "thalach", main = "Histogram of thalach")
+lines(density(heart$thalach), col="red")
+boxplot(heart$thalach, main = "Boxplot of thalach")
+points(mean(heart$thalach))
+```
+The distribution of data above the mean is more dense than below the mean line. 
+We can see that most of the patients have a maximum heart rate more than 155.
+
+### Data fitting for thalach
+According to the domain of the variable, the distributions supported on the 
+set of positive infinite real numbers are fitted on the data. Log-likelihood value, BIC and AIC are estimated in order to evaluate the fit of the 
+distribution.
+```{r}
+thalach.logno<-histDist(heart$thalach, xlab = "chol" , family=LOGNO, nbins=13, 
+  main = "thalach LogNormal Distribution")
+```
+```{r}
+thalach.ga<-histDist(heart$thalach, xlab = "thalach" , family=GA, nbins=13, 
+          main = "thalach Gamma Distribution")
+```
+```{r}
+thalach.wei<-histDist(heart$thalach, xlab = "thalach" , family=WEI, nbins=13, 
+         main = "thalach Weibull Distribution")
+```
+```{r}
+thalach.exp<-histDist(heart$thalach, xlab = "thalach" , family=EXP, nbins=13, 
+         main = "thalach Exponential Distribution")
+```
+```{r}
+thalach.ig<-histDist(heart$thalach, xlab = "thalach" , family=IG, nbins=13, 
+         main = "thalach Inverse Gamma Distribution")
+```
+```{r}
+thalach.matrix<-matrix(c(thalach.logno$df.fit, logLik(thalach.logno), AIC(thalach.logno), thalach.logno$sbc, thalach.ga$df.fit, logLik(thalach.ga), AIC(thalach.ga), thalach.ga$sbc, thalach.wei$df.fit, logLik(thalach.wei), AIC(thalach.wei), thalach.wei$sbc, thalach.exp$df.fit, logLik(thalach.exp), AIC(thalach.exp), thalach.exp$sbc, thalach.ig$df.fit, logLik(thalach.ig), AIC(thalach.ig), thalach.ig$sbc), ncol=4, byrow=TRUE)
+colnames(thalach.matrix)<-c("df","LogLik", "AIC", "BIC")
+rownames(thalach.matrix)<-c("EXP", "GA", "LOGNO", "IG", "WEI")
+thalach.matrix<-as.table(thalach.matrix)
+thalach.matrix
+```
+As we can see the model that has maximum value of log likelihood and less value 
+in AIC and BIC is "LogNormal distribution" so based on maximum likelihood 
+method its safe to say that our data fits better in Exponential distribution.
+
+### Likelihood ratio test
+The Likelihood-ratio test goodness of fit performed between the Inverse Gamma model (under the null hypothesis) and the LogNormal model (under the 
+alternative hypothesis).
+```{r}
+lrtest(thalach.ig, thalach.logno)
+```
+The null hypothesis would be rejected at nearly every significance level. Thus, 
+we know that we should definitely use the LogNormal model as it increases the accuracy of our model by a substantial amount.
+
+## Exercise induced angina (exang)
+Exercise induced angina (exang) is a categorical variable that categorizes 
+results in 2 groups 0 for false, 1 for true.
+```{r}
+summary(heart$exang)
+```
+```{r}
+ggplot(heart, aes(x = exang, fill=exang)) + geom_bar()
+```
+As the result shows group 0 contains 204 records, group 1 contains 99 records. 
+As you can see the data is not balanced and most records are related to group 0 that give us the assumption that exercise most of the time is not a factor to induce angina .
+
+## ST depression induced by exercise relative to rest(oldpeak)
+ST depression induced by exercise relative to rest(oldpeak) is a numerical continuous variable in rage [0,).
+```{r}
+length(heart$oldpeak)
+```
+```{r}
+min(heart$oldpeak)
+```
+```{r}
+max(heart$oldpeak)
+```
+The length of sample is 303, and the values are in range 0-6.2.
+```{r}
+summary(heart$oldpeak)
+```
+```{r}
+sd(heart$oldpeak)
+```
+```{r}
+var(heart$oldpeak)
+```
+From the results we can see the Mean and Median are not equal so the 
+distribution is asymmetrical or skewed. As we can see mean>median so the distribution should be positive and from histogram it appears to be a unimodal distribution.
+```{r}
+skewness(heart$oldpeak)
+```
+The skewness is positive so distribution is skewed towards the left, and many values are greater than the mean.
+```{r}
+hist(heart$oldpeak, freq=FALSE, xlab= "oldpeak", main = "Histogram of oldpeak")
+lines(density(heart$oldpeak), col="red")
+boxplot(heart$oldpeak, main = "Boxplot of oldpeak")
+points(mean(heart$oldpeak))
+```
+The plot shows the presence of some outliers.
+
+### Data fitting for oldpeak
+According to the domain of the variable, the distributions from last analysis 
+are not applicable here because Lognormal, Gamma, weibull, inverse gamma work 
+in range (0, infinite) so we need other distributions that work in range 
+[0, infinite). The distributions supported these data are fitted on the data. Log-likelihood value, BIC and AIC are estimated in order to evaluate the fit of the distribution.
+```{r}
+oldpeak.gu<-histDist(heart$oldpeak, xlab = "oldpeak" , family=GU, nbins=13, 
+  main = "oldpeak gumbel Distribution")
+```
+```{r}
+oldpeak.log<-histDist(heart$oldpeak, xlab = "oldpeak" , family=LO, nbins=13, 
+        main = "oldpeak Logistic Distribution")
+```
+```{r}
+oldpeak.normal<-histDist(heart$oldpeak, xlab = "oldpeak" , family=NO, nbins=13, 
+         main = "oldpeak Normal Distribution")
+```
+```{r}
+oldpeak.exp<-histDist(heart$oldpeak, xlab = "oldpeak" , family=EXP, nbins=13, 
+         main = "oldpeak Exponential Distribution")
+```
+```{r}
+oldpeak.rg<-histDist(heart$oldpeak, xlab = "oldpeak" , family=RG, nbins=13, 
+          main = "oldpeak Reverse Gumbel Distribution")
+```
+```{r}
+oldpeak.matrix<-matrix(c(oldpeak.gu$df.fit, logLik(oldpeak.gu), 
+                         AIC(oldpeak.gu), oldpeak.gu$sbc, oldpeak.log$df.fit,  logLik(oldpeak.log), AIC(oldpeak.log), oldpeak.log$sbc, oldpeak.normal$df.fit, logLik(oldpeak.normal), AIC(oldpeak.normal), oldpeak.normal$sbc, oldpeak.exp$df.fit, logLik(oldpeak.exp), AIC(oldpeak.exp), oldpeak.exp$sbc, oldpeak.rg$df.fit, logLik(oldpeak.rg), AIC(oldpeak.rg), oldpeak.rg$sbc), 
+                       ncol=4, byrow=TRUE )
+colnames(oldpeak.matrix)<-c("df","LogLik", "AIC", "BIC")
+rownames(oldpeak.matrix)<-c("GU", "LO", "NO", "EXP", "RG")
+oldpeak.matrix<-as.table(oldpeak.matrix)
+oldpeak.matrix
+```
+As we can see the model that has maximum value of log likelihood and less value 
+in AIC and BIC is "Exponential distribution" so based on maximum likelihood 
+method its safe to say that our data fits better in Exponential distribution.
+
+### Likelihood ratio test
+The Likelihood-ratio test goodness of fit performed between the Normal model (under the null hypothesis) and the Exponential model (under the alternative hypothesis).
+```{r}
+lrtest(oldpeak.normal, oldpeak.exp)
+```
+The null hypothesis would be rejected at nearly every significance level. Thus, 
+we know that we should definitely use the Exponential model as it increases the accuracy of our model by a substantial amount.
+
+## The slope of the peak exercise ST segment (slope)
+The slope of the peak exercise ST segment (slope) is a categorical variable 
+that categorizes results in 3 groups 0, 1, 2.
+```{r}
+summary(heart$slope)
+```
+```{r}
+ggplot(heart, aes(x = slope, fill=slope)) + geom_bar()
+```
+As the result shows group 0 contains least value between other groups while 
+values in group1 and 2 are distributed almost equal.
+
+## Number of major vessels colored by fluoroscopy(ca)
+Number of major vessels colored by fluoroscopy(ca) is a categorical variable 
+that categorizes results in 5 groups 0, 1, 2, 3, 4.
+```{r}
+summary(heart$ca)
+```
+```{r}
+ggplot(heart, aes(x = ca, fill=ca)) + geom_bar()
+```
+As the result shows data are not balanced between groups and group 0 contains 
+most values between other groups while group4 has the least value.
+
+## Thal
+thal is a categorical variable that categorizes results in 4 groups.
+```{r}
+summary(heart$thal)
+```
+```{r}
+ggplot(heart, aes(x = thal, fill=thal)) + geom_bar()
+```
+As the result shows data are not balanced between groups and group 0 contains 
+the least values between other groups while group2 has the most value.
+
+## Target
+Target is a categorical variable that categorizes results in 2 groups.
+```{r}
+summary(heart$target)
+```
+```{r}
+ggplot(heart, aes(x = target, fill=target)) + geom_bar()
+```
+As the result shows data are not balanced between groups and group 0 contains 
+the least values between other groups while group2 has the most value.
+
+# Principal Component Analysis
+Before proceeding with the PCA, it is necessary to evaluate whether there is correlation between the numerical variables. For this aim first we need a sub dataset with all continuous values.
+
+``` {r}
+heart_sub <- heart[ -c(2,3,6,7,9,11:14) ]
+```
+```{r}
+library(psych)
+pairs.panels(heart_sub, main= "Original space-Bivariate scatter plots",  
+             ellipses = FALSE, gap = 0)
+```
+This is a preliminary analysis of the data in the original space, which aims to understand if it would be useful to run a Principal Component Analysis and a Cluster one on this dataset. In fact, in the upper triangle of the matrix there are the coefficients of correlation between variables, which are used to understand if PCA is useful or not, while in the lower triangle there are the scatterplots of data and on the main diagonal there is the non-parametric 
+density of the data, both used to understand if CA could be useful or not. 
+Specifically, if we look at the plot, we can see that there some variables has 
+no correlation to each other as their correlation is less than 0.1 and is close 
+0 like correlation between trestbps and thalsch (-0.05) and chol and thalach (0.01) but some variables are quite related. In particular, the variables age 
+and thalach are the most positively correlated (0.40) and the variables thalach and oldpeak are the most negatively correlated (-0.34). According to this 
+result, the Principal Component analysis seems justified. This means that a PCA 
+in this dataset could be really useful, in fact we could create a linear combination between the variables and express them through a single variable.
+As regard to the diagonal panels, they are used to understand if the single variable is useful for clustering: if the density line is bimodal, the relative variable could be useful for clustering, otherwise not. In this case, each variable separately considered is not useful to see clusters, but, if we look at the pairwise of variables, it is useful. In fact, from the scatterplots of the data in the lower triangle we can see that there are clusters, because the data are grouped along the diagonal instead of remaining scattered in space. 
+
+## Prepare the data
+In order to evaluate the difference between the variables, the mean and the variance are computed for each variable.
+```{r}
+apply(heart_sub, 2, mean)
+```
+```{r}
+apply(heart_sub, 2, var)
+```  
+The variables are very different from each other. In order to work on 
+homogeneous variables, it is better to standardize the variable in order to have zero mean and unitary variance.
+```{r}
+scaled_heart<-apply(heart_sub, 2, scale)
+head(scaled_heart)
+```
+
+## Computing PCs
+In order to find the Principal Components, the Eigen decomposition is applied to the covariance matrix of the standardized data.
+
+```{r}
+heart_cov <- cov(scaled_heart)
+heart_eigen<-eigen(heart_cov)
+heart_eigen$value
+```
+As an example the eigen vectors of the first two PCs are shown:
+```{r}
+phi <- heart_eigen$vectors[,1:3]
+phi <- -phi
+row.names(phi) <- c("age", "trestbps", "chol", "thalach", "oldpeak")
+colnames(phi) <- c("PC1", "PC2", "PC3")
+phi
+```
+By examining the loading we note that first loading vector phi 1 places most 
+of its weight on age(0.567) and much less weight on thalach(-0.505). The second loading vector phi 2 places most of its weight on chol (0.692) and much less weight on oldpeak(-0.311).
+
+## principal component scores
+```{r}
+PC1 <- scaled_heart %*% phi[,1]
+PC2 <- scaled_heart %*% phi[,2]
+PC <- data.frame(ID = row.names(heart), PC1, PC2)
+head(PC)
+```
+```{r}
+library(ggplot2)
+library(modelr)
+ggplot(PC, aes(PC1, PC2)) +
+modelr::geom_ref_line(h = 0) +
+modelr::geom_ref_line(v = 0) +
+geom_text(aes(label = ID), size = 3) +
+xlab("First Principal Component") +
+ylab("Second Principal Component") +
+ggtitle("Scores-1PC and 2PC")
+```
+
+## Biplot
+It is possible to visualize the scores and the original variable (represented 
+by arrows) in the space spanned by the first two principal components.
+we set center= True to shift the variable into zero center, 
+```{r}
+set.seed(123)
+heart_pc <- prcomp(heart_sub, center = TRUE, scale. = FALSE)
+biplot(heart_pc, cex.axis = 0.5, scale=0)
+abline(h=0)
+abline(v=0)
+```
+The angle between the arrows gives information on the correlation between the 
+two variables.For example thalach and oldpeak are negatively correlated as 
+their degree is 180.
+```{r}
+cor(heart_sub)
+```
+To select the number of principal components, three heuristic methods are proposed.
+
+## Cumulative proportion of Variance Explained (CPVE)
+According to this approach, the first q principal components that explain at 
+least 80% of the total variance are retained.
+```{r}
+(PVE <- heart_eigen$values/sum(heart_eigen$values))
+```
+
+- The first PC explains 36.13% of the variability;
+- The second PC explains 21.55% of the variability;
+- The third PC explains 17.66% of the variability;
+- The fourth PC explains 15.18% of the variability;
+- The fifth PC explains 9.46% of the variables;
+```{r}
+cumsum(PVE)
+```
+According to the CPVE we have to retain as many PCs as needed to explain at 
+least the 80% of the total variance, hence we have to retain the first 4 PCs.
+
+### Scree plot
+The scree plot suggests selecting q corresponding to the value of m where the curve becomes flat.
+```{r}
+plot(PVE, xlab="Principal Component", ylab="Proportion of Variance Explained", main="Scree Plot", ylim=c(0,1), type='b')
+```
+```{r}
+plot(cumsum(PVE), xlab="Principal Component", main="Cumulative Scree Plot", ylab="Cumulative Proportion of Variance Explained", ylim=c(0,1),type='b')
+```
+In the “Proportion of variance Explained” plot, the elbow point is not so clear and it may be at q=3 or q=4. However, according to this method, it seems reasonable to retain the first three principal components.
+
+### Kaiser’s rule
+According to the Kaiser’s rule, for standardized data, the principal components with the variance greater than 1 are taken.
+```{r}
+heart_eigen$values
+```
+The Kaiser’s rule suggests keeping the first two principal components.
+
+## PCA result
+Based on different strategies I obtained different results.The cumulative PVE 
+rule suggests retaining the first four principal components, the Kaiser’s rule suggests retaining the first two principal components while the Scree plot 
+doesn’t provide a clear result. I decided to choose CPVE results as it will 
+obtain more PCs.
+
+# Cluster Analysis
+The purpose of the clustering analysis is to identify patterns of similar units within the heart dataset.
+
+## Hopkins statistic
+``` {r}
+heart_scale <- scale(heart_sub)
+```
+``` {r}
+library(clustertend)
+hopkins(heart_scale, n = nrow(heart_scale)-1)
+```
+The Hopkins statistics value is close to 0. The result indicates clustered data, under the assumption that the
+configuration without cluster is the uniform distribution.
+
+## Computing Euclidean distance
+``` {r}
+dist.eucl <- dist(heart_scale, method = "euclidean")
+eucl <- round(as.matrix(dist.eucl)[1:5,1:5],2)
+row.names(eucl) <- c("age", "trestbps", "chol", "thalach", "oldpeak")
+colnames(eucl) <- c("age", "trestbps", "chol", "thalach", "oldpeak")
+eucl
+```          
+## Computing Manhattan distance
+``` {r}
+dist.man <- dist(heart_scale, method = "manhattan")
+man <- round(as.matrix(dist.eucl)[1:5,1:5],2)
+row.names(man) <- c("age", "trestbps", "chol", "thalach", "oldpeak")
+colnames(man) <- c("age", "trestbps", "chol", "thalach", "oldpeak")
+man
+``` 
+In this symmetric matrix, each value represents the distance between units. The values
+on the diagonal represent the distance between units and themselves (which is zero).
+
+## Visualizing distance matrices
+
+Euclidean:
+```{r}
+library(factoextra)
+fviz_dist(dist.eucl)
+```
+The color level is proportional to the value of the dissimilarity between observations.
+Red indicates high similarity (i.e.: low dissimilarity) while blue indicates low similarity.
+According to the Visual method, that uses the Euclidean distance as distance between units, the data should not contain a noticeable clustering structure. While not sure of the presence of a clustering structure, the analysis continues.
+
+Manhattan:
+```{r}
+library(factoextra)
+fviz_dist(dist.man)
+```
+
+## Optimal number of clusters
+Using both Euclidean and Manhattan distance, according to different clustering methods, the optimal number of clusters will be computed
+
+## Hierarchical method
+### Average linkage method and Euclidean distance
+```{r}
+library(NbClust)
+nb <- NbClust(heart_scale, distance = "euclidean", min.nc = 2, max.nc = 10, 
+              method = "average")
+```
+
+```{r}
+library(factoextra)
+fviz_nbclust(nb)+labs(subtitle = "H.C. - Average linkage method and Euclidean distance", cex.sub= 0.5)
+```
+
+``` {r}
+hc <- hclust(dist.eucl, method = "average")
+grp <- cutree(hc, k=9)
+table(grp)
+grp
+```
+
+```{r}
+fviz_dend(hc, k = 9, cex = 0.5, k_colors = c(
+  "red", "#720000", "blue", "#2E9FDF", "purple", "navy", "#FC4E07", "orange", "#32a852"), color_labels_by_k = TRUE, rect = TRUE)+labs(title = "Dendrogram", subtitle = "H.C. - Average linkage method and Euclidean distance, K=9",    cex.subtitle= 0.5)
+```
+
+``` {r}
+cor(dist.eucl, cophenetic(hc))
+```
+
+According to the result of “NbClust”, the best number of clusters, applying hierarchical clustering method and using average linkage method and Euclidean distance is 9.
+
+```{r}
+pairs(heart_scale, gap=0, pch=grp, cex.main= 0.7, main="Original space\nH.C.-Average linkage method and Euclidean distance, K=9" , col=c("red", "#720000", "blue", "#2E9FDF", "purple",    "navy", "#FC4E07", "orange", "#32a852")[grp])
+```
+``` {r}
+fviz_cluster(list(data = heart_scale, cluster = grp), palette = c("red", "#720000", "blue", "#2E9FDF", "purple", "navy", "#FC4E07", "orange", "#32a852"), ellipse.type = "convex", main="PCs space", repel = TRUE, 
+             show.clust.aver = FALSE, ggtheme = theme_minimal())+
+  labs(subtitle = "H.C. - Average linkage method and Euclidean distance, K=9", cex.sub= 0.5)
+```
+
+
+#### Internal validation measures: silhouette width and Dunn index
+#### Silhouette width
+``` {r}
+hclust<- eclust(heart_sub,k=9 ,"hclust",hc_method  = "average",nboot = 50, hc_metric = "euclidean")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+``` {r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic())+
+  labs(subtitle = "H.C.- Average linkage method and Euclidean distance, K=9", cex.sub= 0.5)
+```
+``` {r}
+silinfo$clus.avg.widths
+```
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu<- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+The value of average silhouette width indicates that in average the units are 
+well enough clustered. As in particular, in each cluster the units are on 
+average the same silhouette value with respect to the silhouette width. 63 units are not well clustered.
+
+#### Dunn index
+``` {r}
+library(fpc)
+stats <- cluster.stats(dist(heart_scale), hclust$cluster)
+stats$dunn
+```
+
+According to the Dunn index, the units are not clustered well enough.
+
+#### External validation measures: confusion matrix, correct Rand index, Meila’s 
+IV index
+#### Confusion matrix
+According to the Confusion matrix, the number of clusters is more than nominal values. The clusters found are 9 while the nominal variable can take 2 possible values. 
+``` {r}
+table(heart$sex, hclust$cluster)
+```
+
+A large number of “female” sex (n = 134) has been classified in cluster 1 while cluster 5 and 8 have 0 number of values. The same happened for  “male” sex 
+(n=52) classified in cluster 1 while cluster 9 has 0 values.
+
+#### Correct Rand Index
+``` {r}
+sex <- as.numeric(heart$sex)
+stats<- cluster.stats(d = dist(heart_scale), sex, hclust$cluster)
+stats$corrected.rand
+```
+According to the Correct Rand Index, there is no agreement between the numerical value and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+#### Meila’s VI Index
+``` {r}
+stats$vi
+```
+### Average linkage method and Manhattan distance
+```{r}
+nb <- NbClust(heart_scale, distance = "manhattan", min.nc = 2, max.nc = 10, 
+              method = "average")
+```
+```{r}
+fviz_nbclust(nb)+labs(subtitle = "H.C. - Average linkage method and Manhattab distance", cex.sub= 0.5)
+```
+```{r}
+dist.man <- dist(heart_scale, method = "manhattan")
+hc <- hclust(dist.man, method = "average")
+grp <- cutree(hc, k=2)
+table(grp)
+```
+```{r}
+fviz_dend(hc, k = 2, cex = 0.5, k_colors = c("#2E9FDF", "#FC4E07"), color_labels_by_k = TRUE, rect = TRUE)+labs(title = "Dendrogram", 
+subtitle = "H.C. - Average linkage method and Manhattan distance, K=2", cex.subtitle= 0.5)
+```
+```{r}
+cor(dist.man, cophenetic(hc))
+```
+According to the result of “NbClust”, the best number of clusters, applying hierarchical clustering method and using average linkage method and Manhattan distance is 2.
+```{r}
+pairs(heart_scale, gap=0, pch=grp, cex.main= 0.7, main="Original space\nH.C.-Average linkage method and Manhattan distance, K=2", col=c("#2E9FDF", "#FC4E07")[grp])
+```
+
+```{r}
+fviz_cluster(list(data = heart_scale, cluster = grp), palette = c("#2E9FDF", "#FC4E07"), ellipse.type = "convex", main="PCs space", repel = TRUE, show.clust.aver = FALSE, ggtheme = theme_minimal())+labs(
+subtitle = "H.C. - Average linkage method and Manhattan distance, K=2", cex.sub= 0.5)
+```
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analysed.
+
+## Internal validation measures: silhouette width and Dunn index
+### Silhouette width
+```{r}
+hclust<- eclust(heart_sub,k=2 ,"hclust",hc_method  = "average",nboot = 50, hc_metric = "manhattan")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic())+
+  labs(subtitle = "H.C.- Average linkage method and Manhattan distance, K=2", cex.sub= 0.5)
+```
+```{r}
+silinfo$clus.avg.widths
+```
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu<- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+The value of average silhouette width indicates that in average the units are 
+well enough clustered. In particular, in cluster 1 (blue cluster) the units are 
+on average the same silhouette value with respect to the silhouette width; in cluster 2 (the yellow one) also the units are on average the same silhouette 
+value with respect to silhouette width. According to this index, six units (216, 17, 162, 181, 5, 40)that belong to cluster 1 are not well clustered: they should belong to cluster 2.
+
+### Dunn index
+```{r}
+stats <- cluster.stats(dist(heart_scale), hclust$cluster)
+stats$dunn
+```
+According to the Dunn index, the units are not clustered well enough.
+
+### External validation measures: confusion matrix, correct Rand index, Meila’s 
+IV index
+### Confusion matrix
+According to the Confusion matrix, the number of clusters is equal to nominal 
+values. 
+```{r}
+table(heart$sex, hclust$cluster)   
+```
+For “Female” sex data has been classified almost equally in each cluster. For  
+“male” sex (n=143) classified in cluster 2 while cluster 1 has 64 values, safe 
+to say data are not well balanced in each cluster.
+
+### Correct Rand Index
+```{r}
+sex <- as.numeric(heart$sex)
+stats<- cluster.stats(d = dist(heart_scale), sex, hclust$cluster)
+stats$corrected.rand
+```
+According to the Correct Rand Index, there is no agreement between the numerical
+values and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+### Meila’s VI Index
+```{r}
+stats$vi
+```
+### Complete linkage method and Euclidean distance
+```{r}
+nb <- NbClust(heart_scale, distance = "euclidean", min.nc = 2, max.nc = 10, 
+              method = "complete")
+```
+```{r}
+fviz_nbclust(nb)+labs(
+  subtitle = "H.C. - Complete linkage method and Euclidean distance", 
+  cex.sub= 0.5)
+```
+
+```{r}
+hc <- hclust(dist.eucl, method = "complete")
+grp <- cutree(hc, k=2)
+table(grp)
+```
+```{r}
+fviz_dend(hc, k = 2, cex = 0.5, k_colors = c("red", "blue"), 
+          color_labels_by_k = TRUE, rect = TRUE)+labs(title = "Dendrogram",
+         subtitle = "H.C. - Complete linkage method and Euclidean distance, 
+         K=2", 
+         cex.subtitle= 0.5)
+```
+
+```{r}
+cor(dist.eucl, cophenetic(hc))
+```
+According to the result of “NbClust”, the best number of clusters, applying 
+hierarchical clustering method and using complete linkage method and Euclidean 
+distance is 2.
+```{r}
+pairs(heart_scale, gap=0, pch=grp, cex.main= 0.7, 
+main="Original space\nH.C.-Complete linkage method and Euclidian distance, 
+K=2",
+col=c("red", "blue")[grp])
+```
+```{r}
+fviz_cluster(list(data = heart_scale, cluster = grp), 
+             palette = c("blue", "red"), ellipse.type = "convex", 
+             main="PCs space", repel = TRUE, show.clust.aver = FALSE, 
+             ggtheme = theme_minimal())+
+  labs(subtitle = "H.C. - Complete linkage method and Euclidean distance, K=2",
+       cex.sub= 0.5)
+```
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analysed.
+
+### Internal validation measures: silhouette width and Dunn index
+### Silhouette width
+```{r}
+hclust<- eclust(heart_sub,k=2 ,"hclust",hc_method  = "complete",nboot = 50, hc_metric = "euclidean")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic())+
+labs(subtitle = "H.C.- Complete linkage method and Euclidean distance, K=2", 
+     cex.sub= 0.5)
+```
+```{r}
+silinfo$clus.avg.widths
+```
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu<- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+The value of average silhouette width indicates that in average the units are 
+well enough clustered. In particular, in cluster 1 (blue cluster) the units are 
+on average the same silhouette value with respect to the silhouette width; 
+in cluster 2 (the yellow one) also the units are on average the same silhouette
+value with respect to silhouette width. According to this index, 3 units 
+(221, 247, 29)that belong to cluster 1 are not well clustered: they should 
+belong to cluster 2.
+
+### Dunn index
+```{r}
+stats <- cluster.stats(dist(heart_scale), hclust$cluster)
+stats$dunn
+```
+According to the Dunn index, the units are not clustered well enough.
+
+### External validation measures: confusion matrix, correct Rand index, Meila’s 
+IV index
+### Confusion matrix
+According to the Confusion matrix, the number of clusters is equal to the 
+nominal values. 
+```{r}
+table(heart$sex, hclust$cluster)   
+```
+A large number of “female” sex (n = 95) has been classified in cluster 1 while 
+cluster 2 have 1 number of values. The same happened for  “male” sex (n=207) 
+classified in cluster 1 while cluster 2 has 0 values.
+
+### Correct Rand Index
+```{r}
+sex <- as.numeric(heart$sex)
+stats<- cluster.stats(d = dist(heart_scale), sex, hclust$cluster)
+stats$corrected.rand
+```
+According to the Correct Rand Index, there is no agreement between the numerical
+values and the cluster solution. From -1 to +1, the agreement is very close to 
+0.
+
+### Meila’s VI Index
+```{r}
+stats$vi
+```
+## Complete linkage method and Manhattan distance
+```{r}
+nb <- NbClust(heart_scale, distance = "manhattan", min.nc = 2, max.nc = 10, 
+              method = "complete")
+```
+```{r}
+fviz_nbclust(nb)+labs(subtitle = "H.C. - Complete linkage method and Manhattan distance", cex.sub= 0.5)
+```
+```{r}
+dist.man <- dist(heart_scale, method = "manhattan")
+hc <- hclust(dist.man, method = "complete")
+grp <- cutree(hc, k=2)
+table(grp)
+```
+```{r}
+fviz_dend(hc, k = 2, cex = 0.5, k_colors = c("#2E9FDF", "#FC4E07"), 
+          r_labels_by_k = TRUE, rect = TRUE)+labs(title = "Dendrogram", 
+          subtitle = "H.C. - Complete linkage method and Manhattan distance, K=2",cex.subtitle= 0.5)
+```
+```{r}
+cor(dist.man, cophenetic(hc))
+```
+
+According to the result of “NbClust”, the best number of clusters, applying hierarchical clustering method and using complete linkage method and Manhattan distance is 2.
+
+```{r}
+pairs(heart_scale, gap=0,  pch=grp, cex.main= 0.7, main="Original space\nH.C.-Complete linkage method and Manhattan distance, K=2", col=c("red", 
+"blue")[grp])
+```
+```{r}
+fviz_cluster(list(data = heart_scale, cluster = grp),  palette = c("red", "blue"), ellipse.type = "convex", main="PCs space", repel = TRUE, 
+             show.clust.aver = FALSE, ggtheme = theme_minimal())+labs(
+               subtitle = "H.C. - Complete linkage method and Manhattan distance, K=2", cex.sub= 0.5)
+```
+
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analysed
+
+### Internal validation measures: silhouette width and Dunn index
+### Silhouette width
+```{r}
+hclust<- eclust(heart_sub,k=2 ,"hclust",hc_method  = "complete",nboot = 50, hc_metric = "manhattan")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic())+
+labs(subtitle = "H.C.- Complete linkage method and Manhattan distance, K=2", cex.sub= 0.5)
+```
+```{r}
+silinfo$clus.avg.widths
+```
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu<- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+The value of complete silhouette width indicates that on average the units are well enough clustered. As in particular, in each cluster the units are on 
+average the same silhouette value with respect to the silhouette width. 
+According to this index, 3 units (221, 247, 29)that belong to cluster 1 are not well clustered: they should belong to cluster 2.
+
+### Dunn index
+```{r}
+stats <- cluster.stats(dist(heart_scale), hclust$cluster)
+stats$dunn
+```
+According to the Dunn index, the units are not clustered well enough.
+
+### External validation measures: confusion matrix, correct Rand index, 
+Meila’s IV index
+### Confusion matrix
+
+According to the Confusion matrix, the number of clusters is equal to nominal values. The clusters found are 2 and the nominal variable can take 2 possible values. 
+```{r}
+table(heart$sex, hclust$cluster)
+```   
+A large number of “female” sex (n = 95) has been classified in cluster 1 while cluster 2 and 1 number of values. The same happened for  “male” sex (n=207) classified in cluster 1 while cluster 2 has 0 values.
+
+### Correct Rand Index
+```{r}
+sex <- as.numeric(heart$sex)
+stats<- cluster.stats(d = dist(heart_scale), sex, hclust$cluster)
+stats$corrected.rand
+```
+According to the Correct Rand Index, there is no agreement between the numerical value and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+### Meila’s VI Index
+```{r}
+stats$vi
+```
+## Centroid linkage method and Euclidean distance
+```{r}
+library(NbClust)
+nb <- NbClust(heart_scale, distance = "euclidean", min.nc = 2, max.nc = 10, 
+               method = "centroid")
+```
+```{r}
+library(factoextra)
+fviz_nbclust(nb)+labs(subtitle = "H.C. - Centroid linkage method and Euclidian distance", cex.sub= 0.5)
+```
+```{r}
+dist.eucl <- dist(heart_scale, method = "euclidian")
+hc <- hclust(dist.eucl, method = "centroid")
+grp <- cutree(hc, k=2)
+table(grp)
+```
+```{r}
+fviz_dend(hc, k = 2, cex = 0.5, k_colors = c("#2E9FDF", "#FC4E07"), color_labels_by_k = TRUE, rect = TRUE)+labs(title = "Dendrogram",                 subtitle = "H.C. - Centroid linkage method and Euclidean distance, K=2", cex.subtitle= 0.5)
+```
+
+```{r}
+cor(dist.eucl, cophenetic(hc))
+```
+According to the result of “NbClust”, the best number of clusters, applying hierarchical clustering method and using the Centroid linkage method and 
+Euclidean distance is 2.
+```{r}
+pairs(heart_scale, gap=0, pch=grp, cex.main= 0.7, main="Original space\nH.C.-Centroid linkage method and Euclidean distance, K=2", col=c("red", "blue")[grp])
+```
+```{r}
+fviz_cluster(list(data = heart_scale, cluster = grp), palette = c("#2E9FDF", "#FC4E07"), ellipse.type = "convex", main="PCs space", repel = TRUE, show.clust.aver = FALSE, ggtheme = theme_minimal())+labs(subtitle = "H.C. - Centroid linkage method and Euclidian distance, K=2", cex.sub= 0.5)
+```
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analysed.
+
+### Internal validation measures: silhouette width and Dunn index
+### Silhouette width
+```{r}
+hclust<- eclust(heart_sub,k=2 ,"hclust",hc_method  = "centroid", nboot = 50, hc_metric = "euclidean")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic())+labs(
+subtitle = "H.C.- Centroid linkage method and Euclidian distance, K=2", 
+cex.sub= 0.5)
+```
+```{r}
+silinfo$clus.avg.widths
+```
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu<- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+The value of average silhouette width indicates that in average the units are 
+well enough clustered. In particular, in cluster 1 (blue cluster) the units are 
+on average the same silhouette value with respect to the silhouette width; in cluster 2 (the yellow one) also the units are on average the same silhouette 
+value with respect to silhouette width. According to this index, 3 units (221, 247, 29)that belong to cluster 1 are not well clustered: they should belong to cluster 2.
+
+### Dunn index
+```{r}
+library(fpc)
+stats <- cluster.stats(dist(heart_scale), hclust$cluster)
+stats$dunn
+```
+According to the Dunn index, the units are not clustered well enough.
+
+### External validation measures: confusion matrix, correct Rand index, 
+Meila’s IV index
+### Confusion matrix
+According to the Confusion matrix, the number of clusters is equal to the nominal values. 
+```{r}
+table(heart$sex, hclust$cluster)   
+```
+A large number of “female” sex (n = 95) has been classified in cluster 1 while cluster 2 have 1 number of values. The same happened for “male” sex (n=207) classified in cluster 1 while cluster 2 has 0 values.
+
+### Correct Rand Index
+```{r}
+sex <- as.numeric(heart$sex)
+stats<- cluster.stats(d = dist(heart_scale), sex, hclust$cluster)
+stats$corrected.rand
+```
+According to the Correct Rand Index, there is no agreement between the numerical values and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+### Meila’s VI Index
+```{r}
+stats$vi
+```
+
+## Centroid linkage method and Manhattan distance
+```{r}
+nb <- NbClust(heart_scale, distance = "manhattan", min.nc = 2, max.nc = 10, 
+              method = "centroid")
+```
+```{r}
+fviz_nbclust(nb)+labs(subtitle = "H.C. - Centroid linkage method and Manhattan distance", cex.sub= 0.5)
+```
+```{r}
+dist.man <- dist(heart_scale, method = "manhattan")
+hc <- hclust(dist.man, method = "centroid")
+grp <- cutree(hc, k=2)
+table(grp)
+grp
+```
+```{r}
+fviz_dend(hc, k = 2, cex = 0.5, k_colors = c("red", "blue"), 
+          color_labels_by_k = TRUE, rect = TRUE)+labs(title = "Dendrogram",
+          subtitle = "H.C. - Centroid linkage method and Manhattan distance,   K=2", cex.subtitle= 0.5)
+```
+```{r}
+cor(dist.eucl, cophenetic(hc))
+```
+According to the result of “NbClust”, the best number of clusters, applying hierarchical clustering method and using complete linkage method and Manhattan distance is 2.
+```{r}
+pairs(heart_scale, gap=0, pch=grp, cex.main= 0.7, main="Original space\nH.C.-Centroid linkage method and Manhattan distance, K=2", col=c("red", "blue")[grp])
+```
+```{r}
+fviz_cluster(list(data = heart_scale, cluster = grp), palette = c("#2E9FDF", "#FC4E07"), ellipse.type = "convex", main="PCs space", repel = TRUE, show.clust.aver = FALSE, ggtheme = theme_minimal())+
+labs(subtitle = "H.C. - Centroid linkage method and Manhattan distance, K=2", cex.sub= 0.5)
+```
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analysed
+
+### Internal validation measures: silhouette width and Dunn index
+### Silhouette width
+```{r}
+hclust<- eclust(heart_sub,k=2 ,"hclust",hc_method  = "centroid",nboot = 50, hc_metric = "manhattan")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic())+labs(
+                  subtitle = "H.C.- Centroid linkage method and Manhattan 
+                   distance, K=2", cex.sub= 0.5)
+```
+```{r}
+silinfo$clus.avg.widths
+```	
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu<- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+The value of complete silhouette width indicates that on average the units are well enough clustered. As in particular, in each cluster the units are on 
+average the same silhouette value with respect to the silhouette width. 
+According to this index, 3 units (221, 247, 29)that belong to cluster 1 are not well clustered: they should belong to cluster 2.
+
+### Dunn index
+```{r}
+stats <- cluster.stats(dist(heart_scale), hclust$cluster)
+stats$dunn
+```
+### External validation measures: confusion matrix, correct Rand index, 
+Meila’s IV index
+### Confusion matrix
+According to the Confusion matrix, the number of clusters is equal to nominal values. The clusters found are 2 and the nominal variable can take 2 possible values. 
+```{r}
+table(heart$sex, hclust$cluster)
+```
+A large number of “female” sex (n = 95) has been classified in cluster 1 while cluster 2 and 1 number of values. The same happened for  “male” sex (n=207) classified in cluster 1 while cluster 2 has 0 values.
+
+### Correct Rand Index
+```{r}
+sex <- as.numeric(heart$sex)
+stats<- cluster.stats(d = dist(heart_scale), sex, hclust$cluster)
+stats$corrected.rand
+```
+According to the Correct Rand Index, there is no agreement between the numerical value and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+### Meila’s VI Index
+```{r}
+stats$vi
+```
+## Ward’s (minimum deviance) method
+```{r}
+library(NbClust)
+nb <- NbClust(heart_scale, distance = "euclidean", min.nc = 2, max.nc = 10, 
+               method = "ward.D2")
+```
+```{r}
+library(factoextra)
+fviz_nbclust(nb)+labs(subtitle = "H.C. - Wars's method", cex.sub= 0.5)
+```
+```{r}
+hc <- hclust(dist.eucl, method = "ward.D2")
+grp <- cutree(hc, k=2)
+table(grp)
+grp
+```
+```{r}
+fviz_dend(hc, k = 2, cex = 0.5, k_colors = c("#2E9FDF", "#FC4E07"),  color_labels_by_k = TRUE, rect = TRUE)+labs(title = "Dendrogram", 
+subtitle = "H.C. - Ward's method, K=2", cex.subtitle= 0.5)
+```
+```{r}
+cor(dist.eucl, cophenetic(hc))
+```
+According to the function “NbClust”, the best number of clusters, applying hierarchical clustering method and using Ward’s method and Euclidean distance, 
+is 2: cluster 1 with 108 units, cluster 2 with 195 units.
+```{r}
+pairs(heart_scale, gap=0, pch=grp, cex.main= 0.7, main="Original space\nH.C.-Ward's method, K=2", col=c("red", "blue")[grp])
+```
+```{r}
+fviz_cluster(list(data = heart_scale, cluster = grp), palette = c("#2E9FDF", "#FC4E07"), ellipse.type = "convex", main="PCs space", repel = TRUE, show.clust.aver = FALSE, ggtheme = theme_minimal())+
+  labs(subtitle = "H.C. - Ward's method and Euclidian distance, K=2", cex.sub= 0.5)
+```
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analysed
+
+### Internal validation measures: silhouette width and Dunn index
+### Silhouette width
+```{r}
+hclust<- eclust(heart_sub,k=2 ,"hclust",hc_method  = "ward.D2",nboot = 50)
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic())+labs(
+subtitle = "H.C.- ward's method and Euclidian distance, K=2", cex.sub= 0.5)
+```
+```{r}
+silinfo$clus.avg.widths
+```
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu<- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+The value of complete silhouette width indicates that on average the units are well enough clustered. As in particular, in each cluster the units are on 
+average the same silhouette value with respect to the silhouette width. 
+According to this index, 20 units that belong to cluster 1 are not well 
+clustered: they should belong to cluster 2.
+
+### Dunn index
+```{r}
+library(fpc)
+stats <- cluster.stats(dist(heart_scale), hclust$cluster)
+stats$dunn
+```
+According to the Dunn index, the units are not clustered well enough.
+
+### External validation measures: confusion matrix, correct Rand index, 
+Meila’s IV index
+### Confusion matrix
+According to the Confusion matrix, the number of clusters is equal to nominal values. The clusters found are 2 and the nominal variable can take 2 possible values. 
+```{r}
+table(heart$sex, hclust$cluster)
+```
+A in "female" group of sex data has classified almosy equal in two clusters. For  “male” sex (n=117) classified in cluster 1 while cluster 2 has 88 values.
+
+### Correct Rand Index
+```{r}
+sex <- as.numeric(heart$sex)
+stats<- cluster.stats(d = dist(heart_scale), sex, hclust$cluster)
+stats$corrected.rand
+```
+According to the Correct Rand Index, there is no agreement between the numerical value and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+### Meila’s VI Index
+```{r}
+stats$vi
+```
+# Partitional method
+## K-means
+```{r}
+library(NbClust)
+library(ggplot2)
+nb <- NbClust(heart_scale, min.nc=2, max.nc=15, method="kmeans")
+```
+```{r}
+fviz_nbclust(nb)+labs(subtitle = "H.C. - Partitional clustering - K-means")
+```
+```{r}
+fviz_nbclust(heart_scale, kmeans, method = "wss") +
+geom_vline(xintercept = 2, linetype = 2)+
+labs(title= "Elbow method: optimal number of clusters K=2", subtitle = "Partitional clustering-K-means")
+```
+```{r}
+set.seed(123)
+(km.res<- kmeans(heart_scale, 2, nstart = 25))
+
+```
+```{r}
+aggregate(heart_sub, by=list(cluster=km.res$cluster), mean)
+```
+As the results shows first cluster contains lower units of variables.
+```{r}
+dd <- cbind(heart_sub, cluster = km.res$cluster)
+head(dd)
+```
+```{r}
+cl <- km.res$cluster
+table(cl)
+```
+```{r}
+pairs(heart_scale, gap=0, pch=cl, main="Original space\nP.C.-K-means method, K=2", cex.main= 1, col=c("#2E9FDF", "purple")[cl])
+```
+
+```{r}
+fviz_cluster(km.res, data = heart_scale, palette = c("#2E9FDF", "purple"), 
+             ellipse.type = "euclid", star.plot = TRUE, repel = TRUE, 
+             main= "PCs space", ggtheme = theme_minimal())+
+  labs(subtitle = "P.C. - K-means method, K=2")
+```
+
+According to the function “NbClust”, the best number of clusters, applying partitional clustering method and using K-means method is 2: cluster 1 with 172 units, cluster 2 with 131 units. The ariability between different clusters: 
+24.8% of the total variability is explained by the separation between clusters.
+In the PCs space, there is not separation between clusters.
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be
+analyzed.
+
+### Internal validation measures: silhouette width and Dunn index
+### Silhouette width
+```{r}
+hclust<- eclust(heart_sub,k=2 ,"kmeans", nstart=25, graph = FALSE)
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic())+
+  labs(subtitle = "P.C.-K-means method, K=2")
+```
+```{r}
+silinfo$clus.avg.widths
+```
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu<- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+The value of average silhouette width indicates that in average the units are 
+well enough clustered. In particular, in cluster 1 (blue cluster) the units are 
+on average the same silhouette value with respect to the silhouette width; 
+in cluster 2 (the yellow one) also the units are on average the same silhouette 
+value with respect to silhouette width. According to this index, 4 units (8, 
+202, 208, 74)that belong to cluster 1 are not well clustered: they should belong
+to cluster 2.
+
+### Dunn index
+```{r}
+stats <- cluster.stats(dist(heart_scale), hclust$cluster)
+stats$dunn
+```
+According to the Dunn index, the units are not clustered well enough.
+
+### External validation measures: confusion matrix, correct Rand index, 
+Meila’s IV index
+### Confusion matrix
+```{r}
+table(heart$sex, hclust$cluster)   
+```
+According to the Confusion matrix, there is not a perfect agreement between the 
+nominal variable Sex and the cluster solution. A large number of “male” sex
+(n = 143) has been classified in cluster 2 but Some of them (n = 64) have been 
+classified in cluster 1. For “female” sex data have been classified almost 
+equally between clusters.
+
+### Correct Rand Index
+```{r}
+sex <- as.numeric(heart$sex)
+stats<- cluster.stats(d = dist(heart_scale), sex, hclust$cluster)
+stats$corrected.rand
+```
+According to the Correct Rand Index, there is no agreement between the 
+numerical values and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+### Meila’s VI Index
+```{r}
+stats$vi
+```
+## Partitioning around medoids (PAM) method and Euclidean distance
+```{r}
+fviz_nbclust(heart_scale, cluster::pam, method = "wss") + 
+  geom_vline(xintercept = 2, linetype = 2)+ 
+  labs(title = "Elbow method-Optimal number of clusters K=2", 
+       subtitle="P.C.-K-medoids method and Euclidean distance", cex.sub= 0.5)
+```
+```{r}
+fviz_nbclust(heart_scale, cluster::pam, method = "silhouette")+
+labs(title = "Silhouette method-Optimal number of clusters K=2", 
+     subtitle="P.C.-K-medoids method and Euclidean distance", cex.sub= 0.5)
+```
+```{r}
+fviz_nbclust(heart_scale, cluster::pam, method = "gap_stat", nboot = 500)+
+labs(title = "Gap statistic method-Optimal number of clusters K=2", 
+     subtitle="P.C.-K-medoids method and Euclidean distance", cex.sub= 0.5)
+```
+In order to find the optimal number of clusters, three indices were used. 
+The elbow method does not seem to give a very clear result; according to Total 
+within sum of square, the suggested number of clusters is assumed to be 2. 
+Silhouette method suggests 2 clusters. Gap statistics 2 cluster, 
+i.e. no presence of clusters in the data. It was decided to proceed by 
+identifying 2 clusters.
+```{r}
+library(cluster)
+set.seed(123)
+(pam.res <- pam(heart_scale, 2, metric = "euclidean"))
+```
+```{r}
+pam.res$clusinfo
+```
+```{r}
+cc <- pam.res$cluster
+pairs(heart_scale, gap=0, pch=cc, main="Original space\nP.C.-K-medoids method 
+      and Euclidean distance, K=2", cex.main= 0.7, 
+      col=c("#2E9FDF","purple")[cc])
+```
+```{r}
+fviz_cluster(pam.res, palette = c("#2E9FDF", "purple"), ellipse.type = "t",
+repel = TRUE, main= "PCs space", ggtheme = theme_classic())+labs(
+subtitle = "P.C.-K-medoids method and Euclidean distance, K=2", cex.sub= 0.5)
+```
+Applying partitioning clustering method and using PAM algorithm and Euclidean distance, two clusters are composed in this way: cluster 1 with 176 units, 
+cluster 2 with 16 units.
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be
+analyzed.
+
+### Internal validation measures: silhouette width and Dunn index
+### Silhouette width
+```{r}
+hclust<- eclust(heart_sub,k=2 ,"pam", graph = FALSE, hc_metric = "euclidean")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+```{r}
+fviz_silhouette(pam.res, palette = "jco",
+ggtheme = theme_classic())+labs(
+subtitle = "P.C.-K-medoids method and Euclidean distance, K=3", cex.sub= 0.5)
+```
+```{r}
+silinfo$clus.avg.widths
+```
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu<- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+The value of average silhouette width indicates that in average the units are 
+not well enough clustered. In particular, in cluster 1 (blue) the units are in average a higher silhouette value with respect to the silhouette width while in cluster 2 (yellow) the unit have in average a lower value then the total
+average silhouette. According to this index, 24 units are not well clustered: units that belong to cluster 2, should belong to cluster 1.
+
+### Dunn index
+```{r}
+stats <- cluster.stats(dist(heart_scale), hclust$cluster)
+stats$dunn
+```
+According to the Dunn index, the units are not clustered well enough.
+
+### External validation measures: confusion matrix, correct Rand index, Meila’s 
+IV index
+### Confusion matrix
+```{r}
+table(heart$sex, hclust$cluster)   
+```
+According to the Confusion matrix, there is not a perfect agreement between the 
+nominal variable Sex and the cluster solution. A large number of “female” sex
+(n = 58) has been classified in cluster 2 but Some of them (n = 38) have been 
+classified in cluster 1. For “male” sex a large number of data (n=108) 
+classified in cluster 1 and (n=99) in cluster 2.
+
+### Correct Rand Index
+```{r}
+sex <- as.numeric(heart$sex)
+stats<- cluster.stats(d = dist(heart_scale), sex, hclust$cluster)
+stats$corrected.rand
+```
+According to the Correct Rand Index, there is no agreement between the numerical
+values and the cluster solution. From -1 to +1, the agreement is very close to 
+0.
+
+### Meila’s VI Index
+```{r}
+stats$vi
+```
+
+## Partitioning around medoids (PAM) method and Manhattan distance
+```{r}
+set.seed(123)
+fviz_nbclust(heart_scale, cluster::pam, method = "wss", 
+             diss = dist(heart_scale, method = "manhattan"))+ 
+  geom_vline(xintercept = 3, linetype = 2)+ labs(title = "Elbow method-Optimal number of clusters K=3", 
+subtitle="P.C.-K-medoids method and Manhattan distance", cex.sub= 0.5)
+```
+```{r}
+fviz_nbclust(heart_scale, cluster::pam, method = "silhouette", diss = dist(heart_scale, method = "manhattan"))+labs(title = "Elbow method-Optimal number of clusters K=2", subtitle="P.C.-K-medoids method and Manhattan distance", cex.sub= 0.5)
+```
+```{r}
+set.seed(123)
+fviz_nbclust(heart_scale, cluster::pam, method = "gap_stat", nboot = 500, diss=dist(heart_scale, method = "manhattan"))+ labs(title = "Gap statistic method-Optimal number of clusters K=2", subtitle="P.C.-K-medoids method and Euclidean distance", cex.sub= 0.5)
+```
+In order to find the optimal number of clusters, three indices were used. The elbow method does not seem suggest k=3. Silhouette method suggests 2 clusters. 
+Gap statistics 2 cluster.It was decided to proceed by identifying 2 clusters.
+
+```{r}
+library(cluster)
+set.seed(123)
+(pam.res <- pam(heart_scale, 2, metric="manhattan"))
+```
+```{r}
+pam.res$clusinfo
+```
+```{r}
+cm <- pam.res$cluster
+pairs(heart_scale, gap=0, main="Original space\nP.C.-K-medoids method and Manhattan distance, K=2",cex.main= 0.7, pch=cm, col=c("#2E9FDF", "purple")[cm])
+```
+```{r}
+fviz_cluster(pam.res, palette = c("#2E9FDF", "purple"), ellipse.type = "t",
+repel = TRUE, ggtheme = theme_classic())+labs(
+subtitle = "P.C.-K-medoids method and Manhattan distance, K=2", cex.sub= 0.5)
+```
+Applying partitioning clustering method and using PAM algorithm and Manhattan distance, two clusters are composed in this way: cluster 1 with 181 units, 
+cluster 2 with 122 units.
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be
+analyzed.
+
+### Internal validation measures: silhouette width and Dunn index
+### Silhouette width
+```{r}
+hclust<- eclust(heart_sub,k=2 ,"pam", graph = FALSE, hc_metric = "manhattan")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+```{r}
+fviz_silhouette(pam.res, palette = "jco",
+ggtheme = theme_classic())+labs(
+subtitle = "P.C.-K-medoids method and Manhattan distance, K=2", cex.sub= 0.5)
+```
+```{r}
+silinfo$clus.avg.widths
+```
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu<- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+The value of average silhouette width indicates that in average the units are 
+not well enough clustered. In particular, in cluster 1 (blue) the units are in average a higher silhouette value with respect to the silhouette width while in cluster 2 (yellow) the unit have in average a lower value then the total
+average silhouette. According to this index, 24 units are not well clustered: units that belong to cluster 2, should belong to cluster 1.
+
+### Dunn index
+```{r}
+stats <- cluster.stats(dist(heart_scale), hclust$cluster)
+stats$dunn
+```
+According to the Dunn index, the units are not clustered well enough.
+
+### External validation measures: confusion matrix, correct Rand index, Meila’s 
+IV index
+### Confusion matrix
+```{r}
+table(heart$sex, hclust$cluster)   
+```
+According to the Confusion matrix, there is not a perfect agreement between the 
+nominal variable Sex and the cluster solution. A large number of “female” sex
+(n = 58) has been classified in cluster 2 but Some of them (n = 38) have been 
+classified in cluster 1. For “male” sex a large number of data (n=108)classified 
+in cluster 1 and (n=99) in cluster 2.
+
+### Correct Rand Index
+```{r}
+sex <- as.numeric(heart$sex)
+stats<- cluster.stats(d = dist(heart_scale), sex, hclust$cluster)
+stats$corrected.rand
+```
+According to the Correct Rand Index, there is no agreement between the 
+numerical values and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+### Meila’s VI Index
+```{r}
+stats$vi
+```
+# Soft clustering approach
+## Model based-clustering
+```{r}
+summary(heart$sex)
+```
+```{r}
+head(heart)
+```
+```{r}
+X <- data.matrix(heart_sub)
+sX <- scale(X)
+pairs(sX, gap=0, pch = 16, col = as.numeric(heart$sex), cex.main = 0.9 ,main="Heart data according to the values of 'Sex' variable")
+```
+To evaluate if there is a relation between the categorical variable Sex and the underlying clustering, the variable is deleted and the data are standardized. 
+The data are visualized by pairwise scatterplots, in which the colors represent the two possible values of sex: “0”, “1”. It seems difficult to distinguish separate groups.
+Different Parsimonious Gaussian mixtures are fitted on the standardized data by using the function Mclust() in R.
+```{r}
+library(mclust)
+mod <- Mclust(heart_scale)
+summary(mod$BIC)
+```
+```{r}
+plot(mod, what = "BIC", ylim = range(mod$BIC, na.rm = TRUE), 
+     legendArgs = list(x = "bottomleft"))
+```
+```{r}
+summary(mod)
+```
+
+```{r}
+library(factoextra)
+fviz_mclust(mod, "BIC", palette = "jco")
+```
+
+```{r}
+head(round(mod$z, 6), 15)
+```
+
+```{r}
+head(mod$classification, 15)
+```
+According to the penalized selection criterion called “BIC” 
+(Bayesian Information Criterion), the three best Gaussian mixture models are: 
+VEI with 3 clusters, VII with 2 clusters and VEI with 5 clusters.The number of clusters that maximizes the BIC of this model is 3: cluster 1 with 85 units, cluster 2 with 148 units and cluster 3 with 70 units.
+```{r}
+library(factoextra)
+pairs(sX, gap=0, pch = 16, col = mod$classification, cex.main = 1,main="Original space\nModel-based clustering: VVI Gaussian mixture model, K=3") 
+```
+```{r}
+fviz_mclust(mod, "classification", geom = "point", pointsize = 1.5, palette = "jco", main = "PCs space")+labs(subtitle= "Model-based clustering: VVI
+Gaussian mixture model, K=3")
+```
+```{r}
+fviz_mclust(mod, "uncertainty", palette = "jco", 
+main = "PCs space - Uncertantly plot")+
+labs(subtitle= "Model-based clustering: VVI Gaussian mixture model, K=3")
+```
+Both in the Original space and in the pcs space there is a great separation between clusters. Furthermore, from the Uncertainty plot, it is noted that some units (big points) are problematic for the soft approach because they belong to different clusters with the same (or similar) probability.
+
+### External validation measures: confusion matrix and correct Rand index
+### Confusion matrix
+```{r}
+table(heart$sex, mod$classification)
+```
+According to the Confusion matrix, there is a good agreement between the nominal variable Sex and the cluster solution. A large number of “female” sex (n = 45) 
+has been classified in cluster 2.A large number of “male” sex (n=109) also have been classified in the same cluster (cluster 2).
+
+# Correct Rand index
+```{r}
+adjustedRandIndex(heart$sex, mod$classification)
+```
+According the Correct Rand Index, there is a good agreement between the Sex nominal variable and the cluster solution.
+
+## The best clustering algorithm
+In order to choose the best clustering algorithm among those proposed, the 
+clValid package of R. is used.The clValid function enables to compare clustering algorithms using two cluster validation measures:
+internal measures (Connectivity, Silhouette coefficient, Dunn index). 
+The methods considered are: hierarchical method (Euclidean- Manhattan), k-means method, pam algorithm (Euclidean-Manhattan) and model-based clustering
+```{r}
+library(clValid)
+clmethods <- c ("hierarchical", "kmeans", "pam")
+V_eucl<-clValid(heart_scale, nClust=2:6, clMethods= clmethods, metric="euclidean", validation="internal")
+summary(V_eucl)
+```
+According to the result, the best clustering algorithm using the Euclidean distance is the hierarchical clustering method with 2 clusters.
+
+```{r}
+library(clValid)
+clmethods <- c ("hierarchical", "kmeans", "pam")
+V_eucl<-clValid(heart_scale, nClust=2:6, clMethods= clmethods, metric="manhattan", validation="internal")
+summary(V_eucl)
+```
+According to the result, the best clustering algorithm using the Manhattan distance is the hierarchical clustering method with 2 clusters.
+```{r}
+library(clValid)
+clmethods <- c ("hierarchical", "kmeans", "pam")
+V_eucl<-clValid(heart_scale, nClust=2:6, clMethods= clmethods, metric="manhattan", validation="stability")
+summary(V_eucl)
+```
+In this measure according to the APN and ADM the best method is hierarchical 
+with 2 clusters and according to AD and FOM the best method is pam with 6 
+number of clusters.
+```{r}
+library(factoextra)
+scale_rob <- scale(heart_sub, center = apply(heart_sub, 2, median), scale = apply(heart_sub, 2, meanabsdev))
+rownames(scale_rob) <- rownames(heart)
+fviz_dist(dist(scale_rob), show_labels = FALSE)+
+labs(title = "Heart data - Robust standardization\nOrdered Dissimilarity 
+     Matrix", gradient = list(low = "red", mid = "white", high =
+"blue"))
+```
+```{r}
+hopkins(scale_rob, n = nrow(scale_rob)-1)
+```
+According to the Hopkins statistic (H) the data set is uniformly distributed 
+because the values is close to 0.ALso the dissimilarity matrix image the data 
+contain a clusters structure. 
+
+# Clustering result
+According to the proposed indices, among the clustering algorithms adopted, the hierarchical method, computed using the Euclidean distance, with 2 clusters 
+seems to be the most suitable.
